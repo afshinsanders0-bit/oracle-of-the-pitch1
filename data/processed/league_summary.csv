@@ -1,0 +1,6 @@
+league_key,matches,seasons,teams,avg_goals,btts_rate,over_25_rate,home_win_rate
+ENG_CHAMP,3864,7,43,2.527,0.503,0.468,0.432
+EPL,2660,7,29,2.874,0.531,0.548,0.441
+LA_LIGA,2660,7,27,2.55,0.509,0.462,0.445
+LIGUE_1,2411,7,29,2.736,0.539,0.522,0.426
+SERIE_A,2660,7,31,2.767,0.553,0.529,0.413
