@@ -13,10 +13,10 @@ webdriver-manager==4.0.1      # Auto-downloads ChromeDriver for Selenium
 cloudscraper==1.2.71          # Bypasses Cloudflare bot protection (Transfermarkt)
 
 # ── DATA STORAGE & PROCESSING ─────────────────────────
-pandas>=3.0.2                # Core data manipulation — DataFrames, rolling windows
-numpy>=2.1.0                 # Numerical arrays, Poisson/Dixon-Coles calculations
-pyarrow>=18.0.0              # Read/write parquet files (fast columnar storage)
-fastparquet>=2024.5.0         # Alternative parquet engine (fallback)
+pandas>=2.0.0,<3.0.0         # Core data manipulation — DataFrames, rolling windows
+numpy>=1.24.0,<2.0.0         # Numerical arrays, Poisson/Dixon-Coles calculations
+pyarrow>=15.0.0              # Read/write parquet files (fast columnar storage)
+fastparquet>=2024.2.0        # Alternative parquet engine (fallback)
 
 # ── FEATURE ENGINEERING ───────────────────────────────
 scikit-learn>=1.6.0          # StandardScaler, TimeSeriesSplit, SMOTE-compatible pipeline
@@ -25,9 +25,8 @@ category-encoders==2.6.3      # Target encoding for team names (replaces one-hot
 
 # ── MACHINE LEARNING MODELS ───────────────────────────
 xgboost>=2.1.0                # XGBoost gradient boosting (Market 1, 3, 4)
-lightgbm==4.3.0               # LightGBM (Market 1, 2 — faster on tabular data)
-         # LogisticRegression (Market 3), RandomForest (Market 4)
-# Note: scikit-learn listed once; pip handles duplicates
+lightgbm>=4.3.0               # LightGBM (Market 1, 2 — faster on tabular data)
+# sklearn includes LogisticRegression (Market 3) & RandomForest (Market 4) — see FEATURE ENGINEERING
 
 # ── HYPERPARAMETER TUNING ─────────────────────────────
 optuna==3.5.0                 # Bayesian hyperparameter optimisation (replaces GridSearch)
@@ -46,8 +45,8 @@ matplotlib>=3.9.0             # SHAP waterfall plots, confusion matrices
 # RPS (Ranked Probability Score) implemented manually in evaluate.py
 
 # ── VISUALISATION ─────────────────────────────────────
-           # All static plots (calibration curves, bankroll chart)
-seaborn>=0.13.2              # Heatmaps (corner tendency, correlation matrices)
+matplotlib>=3.8.0             # Static plots (calibration curves, bankroll chart, SHAP plots)
+seaborn>=0.13.0               # Heatmaps (corner tendency, correlation matrices)
 plotly==5.20.0                # Interactive charts in notebooks and Streamlit dashboard
 
 # ── PROGRESS BARS & LOGGING ───────────────────────────

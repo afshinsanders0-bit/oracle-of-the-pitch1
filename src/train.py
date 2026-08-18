@@ -166,7 +166,22 @@ def train_model(
         Trained XGBClassifier
     """
     logger.info("Loading features parquet ...")
-    df = pd.read_parquet(PATHS.PROCESSED / "features_master.parquet")
+    candidates = [
+        PATHS.PROCESSED / "features_master.parquet",
+        PATHS.PROCESSED / "master_features.parquet",
+        PATHS.PROCESSED / "master_with_elo.parquet",
+        PATHS.PROCESSED / "master.parquet",
+    ]
+    df = None
+    for p in candidates:
+        if p.exists():
+            df = pd.read_parquet(p)
+            logger.info(f"Loaded: {p.name}")
+            break
+    if df is None:
+        raise FileNotFoundError(
+            "No features parquet found.\nRun: python src/update_data.py"
+        )
     logger.info(f"Loaded {len(df):,} matches, {df.shape[1]} raw columns")
 
     # ── Step 1: Season filter ──────────────────────────────────────────────

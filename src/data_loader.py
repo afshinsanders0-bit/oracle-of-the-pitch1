@@ -251,6 +251,16 @@ def parse_raw_csv(
                 logger.debug(f"Dropping {invalid_count} rows with invalid result values")
             df = df[valid_results].copy()
 
+        # Standardise ht_result to string (some seasons use numeric codes)
+        if "ht_result" in df.columns:
+            df["ht_result"] = df["ht_result"].astype("string").str.strip().str.upper()
+            df["ht_result"] = df["ht_result"].replace({"NAN": None, "NONE": None})
+
+        # Standardise referee to string (some seasons have numeric codes)
+        if "referee" in df.columns:
+            df["referee"] = df["referee"].astype("string").str.strip()
+            df["referee"] = df["referee"].replace({"NAN": None, "NONE": None})
+
         # ── Step 6: Add metadata columns ──────────────────────────────────
         df["league_key"]    = league_key
         df["season"]        = season
@@ -268,6 +278,82 @@ def parse_raw_csv(
     except Exception as e:
         logger.error(f"Failed to parse {csv_path.name}: {e}")
         return None
+
+
+# ═══════════════════════════════════════════════════════
+# SECTION 3b — ODDS FALLBACK STRATEGY
+# ═══════════════════════════════════════════════════════
+
+def fill_missing_odds(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fill missing odds using multi-level fallback strategy.
+    
+    Priority order:
+    1. Bet365 odds (B365H, B365D, B365A) — primary source
+    2. Pinnacle odds (PSH, PSD, PSA) — if B365 missing
+    3. Betwin odds (BWH, BWD, BWA) — if both missing
+    4. Per-league average — if all bookmaker odds missing
+    
+    This ensures maximum odds coverage while maintaining data quality.
+    
+    Args:
+        df: DataFrame with odds columns (may have NaNs)
+        
+    Returns:
+        DataFrame with filled odds columns
+    """
+    df = df.copy()
+    odds_cols = ["odds_home", "odds_draw", "odds_away"]
+    
+    # ── Strategy 1: Fill B365 with Pinnacle where missing ──────────────
+    if "odds_pinnacle_home" in df.columns:
+        for b365_col, pinnacle_col in [
+            ("odds_home", "odds_pinnacle_home"),
+            ("odds_draw", "odds_pinnacle_draw"),
+            ("odds_away", "odds_pinnacle_away"),
+        ]:
+            if b365_col in df.columns:
+                mask = df[b365_col].isna() & df[pinnacle_col].notna() & (df[pinnacle_col] > 1.0)
+                filled = mask.sum()
+                df.loc[mask, b365_col] = df.loc[mask, pinnacle_col]
+                if filled > 0:
+                    logger.debug(f"Filled {filled} {b365_col} from Pinnacle")
+    
+    # ── Strategy 2: Fill with Betwin if still missing ──────────────────
+    if "odds_betwin_home" in df.columns:
+        for b365_col, betwin_col in [
+            ("odds_home", "odds_betwin_home"),
+            ("odds_draw", "odds_betwin_draw"),
+            ("odds_away", "odds_betwin_away"),
+        ]:
+            if b365_col in df.columns:
+                mask = df[b365_col].isna() & df[betwin_col].notna() & (df[betwin_col] > 1.0)
+                filled = mask.sum()
+                df.loc[mask, b365_col] = df.loc[mask, betwin_col]
+                if filled > 0:
+                    logger.debug(f"Filled {filled} {b365_col} from Betwin")
+    
+    # ── Strategy 3: League average if still missing ────────────────────
+    for col in odds_cols:
+        if col in df.columns:
+            missing_count = df[col].isna().sum()
+            if missing_count > 0:
+                # Calculate per-league average (only valid odds > 1.0)
+                for league in df["league_key"].unique():
+                    league_df = df[df["league_key"] == league]
+                    league_avg = league_df[league_df[col] > 1.0][col].mean()
+                    
+                    if not pd.isna(league_avg) and league_avg > 1.0:
+                        league_mask = (df["league_key"] == league) & (df[col].isna())
+                        filled = league_mask.sum()
+                        df.loc[league_mask, col] = league_avg
+                        if filled > 0:
+                            logger.debug(
+                                f"Filled {filled} {col} for {league} "
+                                f"with league average ({league_avg:.2f})"
+                            )
+    
+    return df
 
 
 # ═══════════════════════════════════════════════════════
@@ -490,9 +576,17 @@ def build_master_df(
     master.sort_values(["date", "league_key"], inplace=True)
     master.reset_index(drop=True, inplace=True)
 
+    # Drop ht_result if present (mixed types across seasons, not used as a feature)
+    if "ht_result" in master.columns:
+        master.drop(columns=["ht_result"], inplace=True)
+
     # ── Step 5: Derive target variables ───────────────────────────────────
     logger.info("Deriving target variables (BTTS, Over 2.5, Corners) ...")
     master = add_target_variables(master)
+
+    # ── Step 5b: Fill missing odds with fallback strategy ────────────────
+    logger.info("Filling missing odds with fallback strategy ...")
+    master = fill_missing_odds(master)
 
     # ── Step 6: Add fair odds (remove bookmaker margin) ───────────────────
     logger.info("Calculating fair odds (removing bookmaker overround) ...")
@@ -518,14 +612,15 @@ def save_master_df(df: pd.DataFrame) -> None:
     """
     # ── Save full master ───────────────────────────────────────────────────
     master_path = PATHS.PROCESSED / "master.parquet"
-    df.to_parquet(master_path, index=False, engine="pyarrow")
+    # FIX: Pylance stubs missing 'pyarrow' — suppress false positive
+    df.to_parquet(master_path, index=False, engine="pyarrow")  # type: ignore[call-overload]
     logger.success(f"Saved master: {master_path} ({master_path.stat().st_size / 1024:.1f} KB)")
 
     # ── Save per-league files (convenience for league-specific analysis) ───
     for league_key in df["league_key"].unique():
         league_df   = df[df["league_key"] == league_key].copy()
         league_path = PATHS.PROCESSED / f"{league_key}_master.parquet"
-        league_df.to_parquet(league_path, index=False, engine="pyarrow")
+        league_df.to_parquet(league_path, index=False, engine="pyarrow")  # type: ignore[call-overload]
         logger.debug(f"Saved {league_key}: {len(league_df):,} matches → {league_path.name}")
 
 
@@ -555,7 +650,8 @@ def load_master_df(league_key: str | None = None) -> pd.DataFrame:
             "Run: python src/data_loader.py    to build the dataset first."
         )
 
-    df = pd.read_parquet(path, engine="pyarrow")
+    # FIX: Pylance stubs missing 'pyarrow' — suppress false positive
+    df = pd.read_parquet(path, engine="pyarrow")  # type: ignore[call-overload]
     logger.info(f"Loaded: {len(df):,} matches from {path.name}")
     return df
 
@@ -625,6 +721,15 @@ def _log_data_quality(df: pd.DataFrame) -> None:
     if "odds_home" in df.columns:
         odds_coverage = df["odds_home"].notna().mean() * 100
         logger.info(f"Bet365 odds coverage: {odds_coverage:.1f}%")
+
+    # Report on fallback odds sources
+    if "odds_pinnacle_home" in df.columns:
+        pinnacle_coverage = df["odds_pinnacle_home"].notna().mean() * 100
+        logger.info(f"Pinnacle odds coverage (backup): {pinnacle_coverage:.1f}%")
+    
+    if "odds_betwin_home" in df.columns:
+        betwin_coverage = df["odds_betwin_home"].notna().mean() * 100
+        logger.info(f"Betwin odds coverage (backup): {betwin_coverage:.1f}%")
 
     logger.info("=" * 60)
 

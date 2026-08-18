@@ -281,16 +281,24 @@ def _process_league_elo(df: pd.DataFrame, league_key: str) -> pd.DataFrame:
         # ── Season transition: apply regression at start of each new season ──
         if season != current_season:
             if current_season is not None:
-                # New season detected — regress existing ratings toward mean
-                season_teams = set(
-                    df.loc[df["season"] == season, "home_team"].tolist() +
-                    df.loc[df["season"] == season, "away_team"].tolist()
-                )
-                # Compute current league mean (only teams still in this league)
+                # New season detected — regress existing ratings toward mean.
+                # FIX: select each column as a Series and call .tolist() on it
+                # directly. Using df.loc[mask, col].tolist() gives Pylance a
+                # concrete list[str]; the previous pattern of concatenating two
+                # .loc scalar results confused Pylance into a wide scalar union
+                # that has no __iter__ and no .tolist().
+                season_mask  = df["season"] == season
+                home_teams: list[str] = df.loc[season_mask, "home_team"].tolist()
+                away_teams: list[str] = df.loc[season_mask, "away_team"].tolist()
+                season_teams: set[str] = set(home_teams + away_teams)
+
+                # Compute current league mean (only teams still in this league).
+                # FIX: float() narrows np.mean's return type (floating[Any])
+                # to plain float, satisfying apply_season_regression's signature.
                 current_team_ratings = [
                     ratings[t] for t in season_teams if t in ratings
                 ]
-                league_mean = (
+                league_mean = float(
                     np.mean(current_team_ratings)
                     if current_team_ratings
                     else ELO_CONFIG.DEFAULT_RATING
@@ -526,7 +534,8 @@ def elo_leaderboard(df: pd.DataFrame, league_key: str | None = None) -> pd.DataF
 def save_elo_df(df: pd.DataFrame) -> None:
     """Save the ELO-enriched DataFrame to parquet."""
     path = PATHS.PROCESSED / "master_with_elo.parquet"
-    df.to_parquet(path, index=False, engine="pyarrow")
+    # FIX: Pylance stubs missing 'pyarrow' — suppress false positive
+    df.to_parquet(path, index=False, engine="pyarrow")  # type: ignore[call-overload]
     logger.success(f"Saved ELO-enriched DataFrame: {path}")
 
 
@@ -538,7 +547,8 @@ def load_elo_df() -> pd.DataFrame:
             f"ELO parquet not found: {path}\n"
             "Run: python src/elo.py    to build it first."
         )
-    return pd.read_parquet(path, engine="pyarrow")
+    # FIX: Pylance stubs missing 'pyarrow' — suppress false positive
+    return pd.read_parquet(path, engine="pyarrow")  # type: ignore[call-overload]
 
 
 # ═══════════════════════════════════════════════════════

@@ -92,11 +92,12 @@ def get_live_matches(league_keys: list[str] | None = None) -> list[dict]:
 
     # Sofascore tournament IDs for our leagues
     tournament_ids = {
-        "EPL":      17,    # Premier League
-        "ENG_CHAMP":18,    # Championship
-        "LA_LIGA":  8,     # La Liga
-        "SERIE_A":  23,    # Serie A
-        "LIGUE_1":  34,    # Ligue 1
+        "EPL":           17,    # Premier League
+        "ENG_CHAMP":     18,    # Championship
+        "LA_LIGA":       8,     # La Liga
+        "SERIE_A":       23,    # Serie A
+        "LIGUE_1":       34,    # Ligue 1
+        "BUNDESLIGA":    3,     # Bundesliga
     }
     target_ids = set()
     if league_keys:

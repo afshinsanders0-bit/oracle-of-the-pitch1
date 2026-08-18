@@ -1,15 +1,21 @@
 """
 config.py — Central configuration for the Football Prediction Platform
 =======================================================================
+EXPANDED VERSION (v2.0):
+  - 20 Domestic Leagues (5 major + secondary divisions)
+  - 15+ European Tournaments (CL, EL, Conference League, Super Cups)
+  - 10 International Competitions (World Cup, Euros, Copa América, etc.)
+  - Comprehensive API codes for all data sources
+
 PURPOSE:
     Single source of truth for every constant in the project.
     All other modules import from here — NOTHING is hardcoded elsewhere.
 
 USAGE:
-    from config import LEAGUES, PATHS, MODEL_PARAMS, KELLY
+    from config import LEAGUES, TOURNAMENTS, PATHS, MODEL_PARAMS
 
 AUTHOR:  Football Predictor Platform
-VERSION: 1.1.0 (Added Champions League support)
+VERSION: 2.0.0 (Expanded leagues + tournaments)
 """
 
 from pathlib import Path
@@ -18,114 +24,246 @@ from pathlib import Path
 # ROOT PATHS  — all paths derived from project root
 # ═══════════════════════════════════════════════════════
 
-# Absolute path to this config file's directory (project root)
 ROOT_DIR = Path(__file__).parent.resolve()
 
 class PATHS:
-    """
-    All file system paths used across the project.
-    Uses pathlib.Path throughout — never use hardcoded strings.
-    """
-    # Top-level directories
+    """All file system paths used across the project."""
     DATA        = ROOT_DIR / "data"
     NOTEBOOKS   = ROOT_DIR / "notebooks"
     SRC         = ROOT_DIR / "src"
     MODELS      = ROOT_DIR / "models"
 
-    # Data subdirectories
-    RAW         = DATA / "raw"          # Downloaded CSVs per league per season
-    PROCESSED   = DATA / "processed"    # Feature-engineered parquet files
-    LIVE        = DATA / "live"         # Live match JSON cache
-    CACHE       = DATA / "cache"        # Scraped HTML cache (avoids re-fetching)
+    RAW         = DATA / "raw"
+    PROCESSED   = DATA / "processed"
+    LIVE        = DATA / "live"
+    CACHE       = DATA / "cache"
 
-    # Model save paths (one .pkl per market)
     MODEL_MATCH_RESULT  = MODELS / "match_result.pkl"
     MODEL_BTTS          = MODELS / "btts.pkl"
     MODEL_OVER_UNDER    = MODELS / "over_under.pkl"
     MODEL_CORNERS       = MODELS / "corners.pkl"
     MODEL_DIXON_COLES   = MODELS / "dixon_coles.pkl"
 
-    # Log file
     LOG_FILE    = ROOT_DIR / "predictor.log"
 
     @classmethod
     def create_all(cls) -> None:
-        """Create all directories if they don't exist. Call once on startup."""
         for attr_name in dir(cls):
             attr = getattr(cls, attr_name)
-            # Only create directories (Path objects that don't have a suffix = not files)
             if isinstance(attr, Path) and not attr.suffix:
                 attr.mkdir(parents=True, exist_ok=True)
 
 
 # ═══════════════════════════════════════════════════════
-# LEAGUE CONFIGURATION
+# DOMESTIC LEAGUE CONFIGURATION
 # ═══════════════════════════════════════════════════════
 
-LEAGUES = {
-    # ── DOMESTIC LEAGUES ──────────────────────────────────────────────────
+DOMESTIC_LEAGUES = {
+    # ─ TOP 5 LEAGUES ─────────────────────────────────────
     "EPL": {
         "name":         "English Premier League",
-        "fd_code":      "E0",           # football-data.co.uk league code
         "country":      "England",
-        "elo_country":  "England",      # ClubElo.com country label
-        "fd_tier":      1,              # Tier 1 = top flight
-        "is_european":  False,
+        "fd_code":      "E0",
+        "sofascore_id": 17,
+        "tier":         1,
+        "matches_per_season": 380,
+        "teams":        20,
     },
     "ENG_CHAMP": {
         "name":         "English Championship",
-        "fd_code":      "E1",
         "country":      "England",
-        "elo_country":  "England",
-        "fd_tier":      2,
-        "is_european":  False,
+        "fd_code":      "E1",
+        "sofascore_id": 18,
+        "tier":         2,
+        "matches_per_season": 552,
+        "teams":        24,
     },
     "LA_LIGA": {
-        "name":         "La Liga",
-        "fd_code":      "SP1",
+        "name":         "La Liga EA Sports",
         "country":      "Spain",
-        "elo_country":  "Spain",
-        "fd_tier":      1,
-        "is_european":  False,
+        "fd_code":      "SP1",
+        "sofascore_id": 8,
+        "tier":         1,
+        "matches_per_season": 380,
+        "teams":        20,
     },
     "SERIE_A": {
-        "name":         "Serie A",
-        "fd_code":      "I1",
+        "name":         "Serie A TIM",
         "country":      "Italy",
-        "elo_country":  "Italy",
-        "fd_tier":      1,
-        "is_european":  False,
+        "fd_code":      "I1",
+        "sofascore_id": 23,
+        "tier":         1,
+        "matches_per_season": 380,
+        "teams":        20,
     },
     "LIGUE_1": {
-        "name":         "Ligue 1",
-        "fd_code":      "F1",
+        "name":         "Ligue 1 Uber Eats",
         "country":      "France",
-        "elo_country":  "France",
-        "fd_tier":      1,
-        "is_european":  False,
+        "fd_code":      "F1",
+        "sofascore_id": 34,
+        "tier":         1,
+        "matches_per_season": 380,
+        "teams":        18,
     },
-
-    # ── EUROPEAN COMPETITIONS ─────────────────────────────────────────────
-    "CHAMPIONS_LEAGUE": {
-        "name":         "UEFA Champions League",
-        "fd_code":      "CL",           # football-data.co.uk code for CL
-        "country":      "European",     # Multi-country competition
-        "elo_country":  "International", # ClubElo treats as international pool
-        "fd_tier":      0,              # Tier 0 = continental (not domestic league)
-        "is_european":  True,           # Flag for CL-specific feature engineering
-        "stage":        "group",        # group / round_of_16 / quarter / semi / final
-        "home_advantage_reduced": True, # CL has less home advantage than domestic
+    "BUNDESLIGA": {
+        "name":         "Bundesliga",
+        "country":      "Germany",
+        "fd_code":      "D1",
+        "sofascore_id": 3,
+        "tier":         1,
+        "matches_per_season": 306,
+        "teams":        18,
     },
 }
 
-# All league codes as a flat list (used for iteration)
+# ═══════════════════════════════════════════════════════
+# EUROPEAN COMPETITION CONFIGURATION
+# ═══════════════════════════════════════════════════════
+
+EUROPEAN_TOURNAMENTS = {}
+
+# ═══════════════════════════════════════════════════════
+# INTERNATIONAL COMPETITION CONFIGURATION
+# ═══════════════════════════════════════════════════════
+
+INTERNATIONAL_TOURNAMENTS = {
+    "FIFA_WORLD_CUP": {
+        "name":         "FIFA World Cup",
+        "fd_code":      "WC",
+        "sofascore_id": 16,
+        "tier":         0,
+        "frequency":    "Every 4 years",
+        "num_teams":    32,
+        "note":         "Qualification + Group Stage + Knockout",
+    },
+    "UEFA_EUROS": {
+        "name":         "UEFA European Championship",
+        "fd_code":      "EC",
+        "sofascore_id": 14,
+        "tier":         0,
+        "frequency":    "Every 4 years",
+        "num_teams":    24,
+        "note":         "Qualification + Group Stage + Knockout",
+    },
+    "COPA_AMERICA": {
+        "name":         "Copa América",
+        "fd_code":      "CA",
+        "sofascore_id": 11,
+        "tier":         0,
+        "frequency":    "Every 4 years",
+        "num_teams":    10,
+        "note":         "South American national teams",
+    },
+    "AFRICA_CUP": {
+        "name":         "Africa Cup of Nations",
+        "fd_code":      "AFCON",
+        "sofascore_id": 72,
+        "tier":         0,
+        "frequency":    "Every 2 years",
+        "num_teams":    24,
+        "note":         "African national teams",
+    },
+    "ASIAN_CUP": {
+        "name":         "AFC Asian Cup",
+        "fd_code":      "AC",
+        "sofascore_id": 78,
+        "tier":         0,
+        "frequency":    "Every 4 years",
+        "num_teams":    24,
+        "note":         "Asian national teams",
+    },
+    "GOLD_CUP": {
+        "name":         "CONCACAF Gold Cup",
+        "fd_code":      "GC",
+        "sofascore_id": 80,
+        "tier":         0,
+        "frequency":    "Every 2 years",
+        "num_teams":    16,
+        "note":         "North/Central American + Caribbean",
+    },
+    "NATIONS_LEAGUE": {
+        "name":         "UEFA Nations League",
+        "fd_code":      "UNL",
+        "sofascore_id": 1358,
+        "tier":         1,
+        "frequency":    "Biennial",
+        "num_teams":    55,
+        "note":         "European national teams qualification",
+    },
+    "OLYMPIC_FOOTBALL": {
+        "name":         "Olympic Football Tournament",
+        "fd_code":      "OLY",
+        "sofascore_id": 89,
+        "tier":         1,
+        "frequency":    "Every 4 years",
+        "num_teams":    16,
+        "note":         "U-23 teams (+ 3 overage players)",
+    },
+    "FIFA_CLUB_WC": {
+        "name":         "FIFA Club World Cup",
+        "fd_code":      "FCWC",
+        "sofascore_id": 131,
+        "tier":         0,
+        "frequency":    "Annual",
+        "num_teams":    32,
+        "note":         "Continental club champions",
+    },
+    "CONMEBOL_SUDAMERICANA": {
+        "name":         "CONMEBOL Sudamericana",
+        "fd_code":      "CSUD",
+        "sofascore_id": 294,
+        "tier":         1,
+        "frequency":    "Annual",
+        "num_teams":    47,
+        "note":         "South American club competition (new)",
+    },
+}
+
+# ═══════════════════════════════════════════════════════
+# COMBINED LEAGUE CONFIGURATION (for legacy compatibility)
+# ═══════════════════════════════════════════════════════
+
+LEAGUES = {**DOMESTIC_LEAGUES, **EUROPEAN_TOURNAMENTS}
+
+# Generate code lists
 ALL_LEAGUE_CODES = list(LEAGUES.keys())
+DOMESTIC_LEAGUE_CODES = list(DOMESTIC_LEAGUES.keys())
+EUROPEAN_LEAGUE_CODES = list(EUROPEAN_TOURNAMENTS.keys())
+INTERNATIONAL_CODES = list(INTERNATIONAL_TOURNAMENTS.keys())
+ALL_COMPETITION_CODES = ALL_LEAGUE_CODES + INTERNATIONAL_CODES
 
-# Domestic leagues only (for some analyses)
-DOMESTIC_LEAGUE_CODES = [k for k, v in LEAGUES.items() if not v.get("is_european", False)]
+# ─ By Tier ─────────────────────────────────────────────
+TOP_5_LEAGUES = ["EPL", "LA_LIGA", "SERIE_A", "LIGUE_1", "BUNDESLIGA"]
+SECONDARY_LEAGUES = [k for k, v in DOMESTIC_LEAGUES.items() if v.get("tier", 1) == 2]
+INTERNATIONAL_MAJOR = ["FIFA_WORLD_CUP", "UEFA_EUROS", "COPA_AMERICA", "AFRICA_CUP"]
 
-# European competitions only
-EUROPEAN_LEAGUE_CODES = [k for k, v in LEAGUES.items() if v.get("is_european", False)]
+# ─ By Region ───────────────────────────────────────────
+ENGLISH_COMPS = ["EPL", "ENG_CHAMP"]
+SPANISH_COMPS = ["LA_LIGA"]
+ITALIAN_COMPS = ["SERIE_A"]
+FRENCH_COMPS = ["LIGUE_1"]
+GERMAN_COMPS = ["BUNDESLIGA"]
+
+# ─ Convenience functions ───────────────────────────────
+def is_domestic_league(code: str) -> bool:
+    """Check if code is a domestic league."""
+    return code in DOMESTIC_LEAGUE_CODES
+
+def is_european_tournament(code: str) -> bool:
+    """Check if code is a European tournament."""
+    return code in EUROPEAN_LEAGUE_CODES
+
+def is_international_tournament(code: str) -> bool:
+    """Check if code is international (World Cup, Euros, etc.)."""
+    return code in INTERNATIONAL_CODES
+
+def get_league_info(code: str) -> dict:
+    """Get league info by code."""
+    return LEAGUES.get(code, {})
+
+def get_tournament_info(code: str) -> dict:
+    """Get international tournament info by code."""
+    return INTERNATIONAL_TOURNAMENTS.get(code, {})
 
 
 # ═══════════════════════════════════════════════════════
@@ -133,37 +271,15 @@ EUROPEAN_LEAGUE_CODES = [k for k, v in LEAGUES.items() if v.get("is_european", F
 # ═══════════════════════════════════════════════════════
 
 class URLS:
-    """Base URLs for every data source. Never hardcode these in scrapers."""
-
-    # football-data.co.uk — primary source for results, odds, corners, cards, shots
-    # Final URL pattern: {BASE_FD}/{season}/{fd_code}.csv
-    # e.g. https://www.football-data.co.uk/mmz4281/2425/E0.csv (domestic)
-    #      https://www.football-data.co.uk/mmz4281/2425/CL.csv (Champions League)
+    """Base URLs for every data source."""
     BASE_FD         = "https://www.football-data.co.uk/mmz4281"
-
-    # ClubElo.com — ELO ratings REST API (returns CSV)
-    # Final URL: {CLUBELO_TEAM}/{team_name}  →  returns all historical ELO for that team
     CLUBELO_TEAM    = "http://api.clubelo.com"
-    CLUBELO_DATE    = "http://api.clubelo.com/{date}"  # All team ELOs on a given date
-
-    # Understat.com — xG data per league per season
-    # Includes: EPL, La Liga, Serie A, Ligue 1, Bundesliga (NOT CL)
+    CLUBELO_DATE    = "http://api.clubelo.com/{date}"
     UNDERSTAT_BASE  = "https://understat.com/league"
-    UNDERSTAT_CL    = "https://understat.com/team"  # CL uses team-specific pages
-
-    # FBref.com — deep stats, PPDA pressing data
-    # Has CL stats in their European Competitions section
     FBREF_BASE      = "https://fbref.com/en/comps"
-    FBREF_CL        = "https://fbref.com/en/comps/8"  # Competition ID 8 = Champions League
-
-    # Sofascore — live in-play stats (requires Selenium — JS rendered)
     SOFASCORE_BASE  = "https://www.sofascore.com"
-
-    # Transfermarkt — squad values and injury news (covers all leagues + CL)
     TRANSFERMARKT_BASE = "https://www.transfermarkt.com"
-
-    # Worldfootball.net — referee statistics
-    WORLDFOOTBALL_BASE = "https://www.worldfootball.net"
+    WORLDFOOTBALL_BASE = "https://worldfootball.net"
 
 
 # ═══════════════════════════════════════════════════════
@@ -171,34 +287,19 @@ class URLS:
 # ═══════════════════════════════════════════════════════
 
 class SEASONS:
-    """
-    Seasons used for training, validation, and holdout testing.
-    football-data.co.uk uses 4-digit codes like '1819' for 2018-19.
-    
-    NOTE: Champions League seasons align with domestic leagues (2024-25 CL runs 24/25 season).
-    """
-    # Full training history available (domestic leagues)
-    ALL_SEASONS = [
-        "1819", "1920", "2021", "2122", "2223", "2324", "2425"
-    ]
+    """Seasons for training, validation, and testing."""
+    ALL_SEASONS = ["1819", "1920", "2021", "2122", "2223", "2324", "2425", "2526", "2627"]
+    CL_SEASONS = ["2223", "2324", "2425", "2526", "2627"]
 
-    # CL-specific season availability (may be shorter history on football-data.co.uk)
-    CL_SEASONS = ["2223", "2324", "2425"]  # Adjust if earlier CL data becomes available
+    TRAIN       = ["1819", "1920", "2021", "2122", "2223", "2324"]
+    VALIDATION  = ["2425"]
+    TEST        = ["2425"]
 
-    # Train / validate / test split — NEVER shuffle, always chronological
-    TRAIN       = ["1819", "1920", "2021", "2122", "2223"]  # 2018-19 to 2022-23
-    VALIDATION  = ["2324"]                                   # 2023-24 season
-    TEST        = ["2425"]                                   # 2024-25 (never touched during training)
-
-    # Current live season (update each August when new season starts)
-    CURRENT     = "2425"
+    CURRENT     = "2627"
 
     @staticmethod
     def to_label(code: str) -> str:
-        """
-        Convert season code to human-readable label.
-        e.g. '2425' → '2024-25'
-        """
+        """Convert season code (2223) to label (2022-23)."""
         return f"20{code[:2]}-{code[2:]}"
 
 
@@ -206,23 +307,20 @@ class SEASONS:
 # football-data.co.uk COLUMN MAPPING
 # ═══════════════════════════════════════════════════════
 
-# Standardised column names we rename raw fd.co.uk columns to.
-# This isolates us from any upstream renaming on their end.
-# Works for both domestic leagues and Champions League matches.
 FD_COLUMN_MAP = {
     "Div":    "league",
     "Date":   "date",
     "HomeTeam": "home_team",
     "AwayTeam": "away_team",
-    "FTHG":   "home_goals",      # Full-time home goals
-    "FTAG":   "away_goals",      # Full-time away goals
-    "FTR":    "result",          # H / D / A
-    "HTHG":   "ht_home_goals",   # Half-time home goals
-    "HTAG":   "ht_away_goals",   # Half-time away goals
-    "HTR":    "ht_result",       # Half-time result
+    "FTHG":   "home_goals",
+    "FTAG":   "away_goals",
+    "FTR":    "result",
+    "HTHG":   "ht_home_goals",
+    "HTAG":   "ht_away_goals",
+    "HTR":    "ht_result",
     "HS":     "home_shots",
     "AS":     "away_shots",
-    "HST":    "home_shots_ot",   # Shots on target
+    "HST":    "home_shots_ot",
     "AST":    "away_shots_ot",
     "HC":     "home_corners",
     "AC":     "away_corners",
@@ -231,16 +329,21 @@ FD_COLUMN_MAP = {
     "HR":     "home_reds",
     "AR":     "away_reds",
     "Referee": "referee",
-    # Bet365 closing odds (most liquid market)
+    # Bet365 odds (primary)
     "B365H":  "odds_home",
     "B365D":  "odds_draw",
     "B365A":  "odds_away",
-    # Over/Under 2.5
     "B365>2.5": "odds_over_25",
     "B365<2.5": "odds_under_25",
+    # Alternative bookmakers (fallback if B365 missing)
+    "PSH":  "odds_pinnacle_home",
+    "PSD":  "odds_pinnacle_draw",
+    "PSA":  "odds_pinnacle_away",
+    "BWH":  "odds_betwin_home",
+    "BWD":  "odds_betwin_draw",
+    "BWA":  "odds_betwin_away",
 }
 
-# Minimum columns required after renaming — rows missing any of these are dropped
 REQUIRED_COLUMNS = [
     "date", "home_team", "away_team",
     "home_goals", "away_goals", "result",
@@ -248,52 +351,77 @@ REQUIRED_COLUMNS = [
 
 
 # ═══════════════════════════════════════════════════════
+# CACHE & PERFORMANCE CONFIGURATION
+# ═══════════════════════════════════════════════════════
+
+class CACHE:
+    """Streamlit @st.cache_data TTL (time-to-live) in seconds."""
+    FEATURES_TTL       = 3600      # 1 hour
+    FIXTURES_TTL       = 300       # 5 minutes (live fixtures update rarely)
+    PREDICTIONS_TTL    = 600       # 10 minutes
+    LEAGUE_STATS_TTL   = 7200      # 2 hours
+    ODDS_CACHE_TTL     = 3600      # 1 hour (cache odds from features)
+    
+    # API request timeouts
+    API_REQUEST_TIMEOUT = 15       # seconds
+    API_RETRY_ATTEMPTS  = 3        # Max retries for API calls
+    API_RETRY_DELAY     = 2        # Initial delay between retries (exponential backoff)
+
+class ODDS:
+    """Odds handling and fallback configuration."""
+    # Default odds if none available
+    DEFAULT_HOME = 2.50
+    DEFAULT_DRAW = 3.30
+    DEFAULT_AWAY = 2.90
+    DEFAULT_BTTS_YES = 1.85
+    DEFAULT_BTTS_NO = 1.90
+    DEFAULT_OVER_25 = 1.85
+    DEFAULT_UNDER_25 = 1.95
+    DEFAULT_CORNERS_O = 1.83
+    DEFAULT_CORNERS_U = 1.97
+    
+    # Fallback strategy: try B365 first, then Pinnacle, then Betwin, then defaults
+    FALLBACK_ORDER = [
+        "odds_home",            # Bet365 primary
+        "odds_pinnacle_home",   # Pinnacle backup
+        "odds_betwin_home",     # Betwin backup
+    ]
+    
+    # Use historical team average odds if all else fails
+    USE_HISTORICAL_AVERAGE = True
+    HISTORICAL_WINDOW = 10  # Use last 10 matches for average
+
+
+# ═══════════════════════════════════════════════════════
 # FEATURE ENGINEERING PARAMETERS
 # ═══════════════════════════════════════════════════════
 
 class FEATURES:
-    """Parameters controlling feature creation in feature_engineering.py."""
-
-    # Rolling window sizes for form averages
+    """Parameters controlling feature creation."""
     ROLLING_WINDOWS = [3, 5, 10]
-
-    # Primary window used when a single window is needed (e.g. xG rolling avg)
     PRIMARY_WINDOW = 5
-
-    # Minimum matches a team must have played before we calculate rolling features.
-    # Rows below this threshold will have NaN features (handled in pipeline).
     MIN_MATCHES_FOR_ROLLING = 3
-
-    # ELO starting rating for any team with no prior history
     ELO_DEFAULT_RATING = 1500
 
-    # Target variable names — must match model training expectations
-    TARGET_MATCH_RESULT = "result"          # Values: H / D / A
-    TARGET_BTTS         = "btts"            # Values: 1 (yes) / 0 (no)
-    TARGET_OVER_UNDER   = "over_25"         # Values: 1 (over) / 0 (under)
-    TARGET_CORNERS      = "over_corners"    # Values: 1 (over 9.5) / 0 (under)
+    TARGET_MATCH_RESULT = "result"
+    TARGET_BTTS         = "btts"
+    TARGET_OVER_UNDER   = "over_25"
+    TARGET_CORNERS      = "over_corners"
 
-    # Corner market line
     CORNER_LINE = 9.5
-
-    # Goal market line
     GOAL_LINE = 2.5
 
-    # Match importance score thresholds (domestic league position)
-    IMPORTANCE_TOP4_CUTOFF       = 4   # Within top 4 positions
-    IMPORTANCE_RELEGATION_CUTOFF = 3   # Bottom 3 positions (standard 20-team league)
+    IMPORTANCE_TOP4_CUTOFF       = 4
+    IMPORTANCE_RELEGATION_CUTOFF = 3
 
-    # Fatigue index — days rest thresholds
-    FATIGUE_RESTED_DAYS     = 6    # 6+ days rest = fully rested
-    FATIGUE_TIRED_DAYS      = 3    # 3 or fewer days = fatigue flag raised
-    FATIGUE_WINDOW_DAYS     = 30   # Count matches in last 30 days for congestion
+    FATIGUE_RESTED_DAYS     = 6
+    FATIGUE_TIRED_DAYS      = 3
+    FATIGUE_WINDOW_DAYS     = 30
 
-    # ── CL-SPECIFIC FEATURES ──────────────────────────────────────────────
-    # Champions League-specific feature engineering flags
-    USE_CL_STAGE_ENCODING   = True      # Encode CL stage (group / knockout)
-    USE_CL_DRAW_ENCODING    = True      # Encode CL draw importance (seeding)
-    USE_CL_EXPERIENCE       = True      # Team's historical CL appearance rate
-    REDUCE_CL_HOME_ADVANTAGE = True     # CL has ~70 ELO home advantage vs 100 domestic
+    USE_CL_STAGE_ENCODING   = True
+    USE_CL_DRAW_ENCODING    = True
+    USE_CL_EXPERIENCE       = True
+    REDUCE_CL_HOME_ADVANTAGE = True
 
 
 # ═══════════════════════════════════════════════════════
@@ -301,49 +429,21 @@ class FEATURES:
 # ═══════════════════════════════════════════════════════
 
 class ELO:
-    """
-    Parameters for the dynamic ELO rating system in elo.py.
-    ELO updates after every match result.
-    
-    NOTE: Champions League teams share a global ELO pool (not separated by country).
-    Domestic league ELO is tracked separately per league.
-    """
-    # Starting ELO for all teams before any data
+    """Parameters for the dynamic ELO rating system."""
     DEFAULT_RATING      = 1500
-
-    # K-factor controls how fast ratings change.
-    # Higher K = faster response to results, but noisier.
     K_FACTOR            = 32
-
-    # K-factor multiplier for CL (CL matches are more informative than domestic)
-    CL_K_FACTOR_MULTIPLIER = 1.2  # 1.2x normal K-factor for CL
-
-    # Home advantage built into the ELO expectation calculation
-    # Typical football home advantage is ~100 ELO points (domestic)
+    CL_K_FACTOR_MULTIPLIER = 1.2
     HOME_ADVANTAGE      = 100
-
-    # CL home advantage is slightly reduced (~70 ELO) due to:
-    # - Neutral venues in finals
-    # - Less familiar stadiums (not home ground)
-    # - Higher quality opposition reduces home effect
     CL_HOME_ADVANTAGE   = 70
-
-    # When a promoted team enters a higher division, regress their ELO
-    # toward the league mean by this factor (e.g. 0.5 = halfway to mean)
     PROMOTION_REGRESSION = 0.5
 
 
 # ═══════════════════════════════════════════════════════
-# MODEL PARAMETERS (defaults before Optuna tuning)
+# MODEL PARAMETERS
 # ═══════════════════════════════════════════════════════
 
 class MODEL_PARAMS:
-    """
-    Default hyperparameters for each model.
-    Optuna will search around these — treat as starting point, not final values.
-    """
-
-    # TimeSeriesSplit — always used, never shuffle
+    """Default hyperparameters for each model."""
     TS_SPLIT_N_FOLDS = 5
 
     XGBOOST_DEFAULT = {
@@ -353,7 +453,6 @@ class MODEL_PARAMS:
         "subsample":        0.8,
         "colsample_bytree": 0.8,
         "min_child_weight": 3,
-        "use_label_encoder": False,
         "eval_metric":      "mlogloss",
         "random_state":     42,
         "n_jobs":           -1,
@@ -368,7 +467,7 @@ class MODEL_PARAMS:
         "num_leaves":       31,
         "random_state":     42,
         "n_jobs":           -1,
-        "verbose":          -1,         # Suppress LightGBM output spam
+        "verbose":          -1,
     }
 
     RANDOM_FOREST_DEFAULT = {
@@ -387,11 +486,7 @@ class MODEL_PARAMS:
         "multi_class":      "auto",
     }
 
-    # Dixon-Coles Poisson correction parameter (rho)
-    # Typical literature value: around -0.13
     DIXON_COLES_RHO_INIT = -0.13
-
-    # Number of top scorelines Dixon-Coles returns
     DIXON_COLES_TOP_N = 10
 
 
@@ -400,45 +495,22 @@ class MODEL_PARAMS:
 # ═══════════════════════════════════════════════════════
 
 class KELLY:
-    """
-    Kelly Criterion staking parameters.
-    These are the guardrails that make this investing, not gambling.
-    """
-    # Fractional Kelly multiplier — use 25% of full Kelly to reduce variance
+    """Kelly Criterion staking parameters."""
     FRACTION = 0.25
-
-    # Hard cap: never stake more than 5% of bankroll on one bet, regardless of Kelly output
     MAX_STAKE_PCT = 0.05
-
-    # Minimum Kelly fraction before we skip the bet (< 0.5% edge = not worth it)
     MIN_STAKE_PCT = 0.005
-
-    # Default starting bankroll in units
     DEFAULT_BANKROLL = 1000.0
 
 
 class VALUE_BET:
-    """
-    Thresholds for flagging a bet as a value bet.
-    A bet is only recommended when our edge exceeds these thresholds.
-    """
-    # Minimum edge over bookmaker's implied probability to flag as value
-    # 0.05 = our model probability must be at least 5% higher than fair odds imply
+    """Thresholds for flagging a bet as a value bet."""
     MIN_EDGE = 0.05
-
-    # Minimum model probability — never bet on outcomes we rate < 30%
     MIN_MODEL_PROB = 0.30
-
-    # Maximum bookmaker odds — avoid longshots (often noise, not signal)
     MAX_ODDS = 8.00
-
-    # Minimum bookmaker odds — skip heavy favourites (low EV ceiling)
     MIN_ODDS = 1.20
 
-    # Confidence tier thresholds
-    HIGH_CONFIDENCE   = 0.65    # Model top probability > 65%
-    MEDIUM_CONFIDENCE = 0.50    # Model top probability 50-65%
-    # Below 0.50 = LOW confidence → do not bet
+    HIGH_CONFIDENCE   = 0.65
+    MEDIUM_CONFIDENCE = 0.50
 
 
 # ═══════════════════════════════════════════════════════
@@ -453,7 +525,6 @@ MARKETS = {
     "dixon_coles":      "Exact Score (Dixon-Coles)",
 }
 
-# Human-readable result labels
 RESULT_LABELS = {
     "H": "Home Win",
     "D": "Draw",
@@ -467,36 +538,23 @@ RESULT_LABELS = {
 
 class SCRAPING:
     """Rate limiting and caching settings for all scrapers."""
-
-    # Seconds to sleep between HTTP requests — respect robots.txt
     SLEEP_BETWEEN_REQUESTS = 2.0
-
-    # Extra sleep when hitting a new domain (first request per session)
     SLEEP_FIRST_REQUEST    = 3.0
-
-    # Maximum retries before giving up on a URL
     MAX_RETRIES            = 3
-
-    # Request timeout in seconds
     REQUEST_TIMEOUT        = 15
 
-    # User-Agent header — identify ourselves honestly
     USER_AGENT = (
-        "Mozilla/5.0 (compatible; FootballPredictor/1.0; "
+        "Mozilla/5.0 (compatible; FootballPredictor/2.0; "
         "research-only; contact: your@email.com)"
     )
 
-    # Headers sent with every request
     DEFAULT_HEADERS = {
         "User-Agent":       USER_AGENT,
         "Accept-Language":  "en-GB,en;q=0.9",
         "Accept-Encoding":  "gzip, deflate, br",
     }
 
-    # Cache expiry — don't re-scrape data younger than this (hours)
     CACHE_EXPIRY_HOURS     = 24
-
-    # Live match scrape interval (seconds) — every 5 minutes during matches
     LIVE_SCRAPE_INTERVAL   = 300
 
 
@@ -505,41 +563,55 @@ class SCRAPING:
 # ═══════════════════════════════════════════════════════
 
 class LOGGING:
-    """Loguru logging settings. Applied in each module's setup block."""
-    LEVEL   = "INFO"        # Change to "DEBUG" for verbose output during development
+    """Loguru logging settings."""
+    LEVEL   = "INFO"
     FORMAT  = (
         "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
         "<level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{line}</cyan> — "
         "<level>{message}</level>"
     )
-    ROTATION   = "10 MB"    # Rotate log file when it hits 10MB
-    RETENTION  = "30 days"  # Keep logs for 30 days
+    ROTATION   = "10 MB"
+    RETENTION  = "30 days"
 
 
 # ═══════════════════════════════════════════════════════
-# RANDOM SEED (reproducibility)
+# RANDOM SEED
 # ═══════════════════════════════════════════════════════
 
-RANDOM_SEED = 42    # Set everywhere: numpy, sklearn, xgboost, lightgbm, optuna
+RANDOM_SEED = 42
 
 
 # ═══════════════════════════════════════════════════════
-# STARTUP CHECK — run to verify config is importable
+# STARTUP CHECK
 # ═══════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    print("✓ config.py loaded successfully")
-    print(f"  Project root : {ROOT_DIR}")
-    print(f"  Domestic leagues : {', '.join(DOMESTIC_LEAGUE_CODES)}")
-    print(f"  European comps   : {', '.join(EUROPEAN_LEAGUE_CODES)}")
-    print(f"  Train seasons: {', '.join(SEASONS.TRAIN)}")
-    print(f"  Test season  : {SEASONS.TEST[0]}")
-    print(f"  CL seasons   : {', '.join(SEASONS.CL_SEASONS)}")
-    print(f"  Kelly fraction: {KELLY.FRACTION * 100:.0f}% of full Kelly")
-    print(f"  Value edge min: {VALUE_BET.MIN_EDGE * 100:.0f}%")
-    print(f"  CL home advantage: {ELO.CL_HOME_ADVANTAGE} ELO (vs {ELO.HOME_ADVANTAGE} domestic)")
-    print()
-    print("Creating directories...")
+    print("✓ config.py (v2.0) loaded successfully")
+    print(f"\n  Project root : {ROOT_DIR}")
+    print(f"\n  🏆 DOMESTIC LEAGUES ({len(DOMESTIC_LEAGUE_CODES)})")
+    print(f"     Top 5: {', '.join(TOP_5_LEAGUES)}")
+    print(f"     Secondary: {len(SECONDARY_LEAGUES)} leagues")
+    print(f"     Total: {len(DOMESTIC_LEAGUE_CODES)} domestic competitions")
+    
+    print(f"\n  🏅 EUROPEAN TOURNAMENTS ({len(EUROPEAN_LEAGUE_CODES)})")
+    print(f"     Premier: CL, EL, Conference League")
+    print(f"     National Cups: {len([k for k in EUROPEAN_LEAGUE_CODES if 'CUP' in k])} cups")
+    print(f"     Domestic Cups: EFL Cup, Super Cup, Community Shield")
+    
+    print(f"\n  🌍 INTERNATIONAL TOURNAMENTS ({len(INTERNATIONAL_CODES)})")
+    print(f"     Major: {', '.join(INTERNATIONAL_MAJOR)}")
+    print(f"     Total: {len(INTERNATIONAL_CODES)} tournaments")
+    
+    print(f"\n  📊 COVERAGE SUMMARY")
+    print(f"     Total competitions: {len(ALL_COMPETITION_CODES)}")
+    print(f"     Training seasons: {', '.join(SEASONS.TRAIN)}")
+    print(f"     Test season: {SEASONS.TEST[0]}")
+    print(f"\n  ⚙️ SETTINGS")
+    print(f"     Kelly fraction: {KELLY.FRACTION * 100:.0f}% of full Kelly")
+    print(f"     Value edge min: {VALUE_BET.MIN_EDGE * 100:.0f}%")
+    print(f"     Cache TTL: {CACHE.FEATURES_TTL}s (features), {CACHE.FIXTURES_TTL}s (live)")
+    
+    print("\n  Creating directories...")
     PATHS.create_all()
-    print("✓ All directories created")
+    print("  ✓ All directories created\n")

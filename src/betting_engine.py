@@ -327,7 +327,8 @@ class BetBuilder:
         # ── Model verdict (top prediction across all markets) ──────────────
         mr = predictions.get("match_result", {})
         if mr:
-            top_out  = max(mr, key=mr.get)
+            # FIX: use explicit lambda instead of dict.get (avoids Pylance reportCallIssue)
+            top_out  = max(mr, key=lambda k: mr[k])
             top_prob = mr[top_out]
             conf_str = confidence_tier(top_prob)
             model_verdict = f"{top_out} @ {top_prob:.0%} — {conf_str} confidence"

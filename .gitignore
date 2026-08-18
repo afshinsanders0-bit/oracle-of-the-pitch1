@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data files (too large for git)
+data/raw/*.csv
+data/processed/*.parquet
+data/processed/*.csv
+data/live/
+data/cache/
+
+# Models (can be regenerated)
+models/*.pkl
+models/*.pth
+models/*.h5
+
+# Logs
+*.log
+predictor.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
